@@ -9,21 +9,16 @@ from email.header import decode_header
 from datetime import datetime
 
 try:
-    import google.generativeai as genai
+    from google import genai
 except ImportError:
-    os.system("pip install google-generativeai")
-    import google.generativeai as genai
+    os.system("pip install google-genai")
+    from google import genai
 
 
-# =====================================================
-#   FILL IN YOUR DETAILS HERE
-# =====================================================
-GMAIL_ADDRESS     = "senthilvj2001@gmail.com"           # e.g. senthilvj2001@gmail.com
-GMAIL_APP_PASSWORD = "drdj fwwh qerx hcor"   # e.g. abcdabcdabcdabcd (no spaces)
-GEMINI_API_KEY    = "AIzaSyDhQTTkyvwrjRYB4PBVYPmYNZJhDKxq_-0"  # e.g. AIzaSyxxxxxxxx
-# =====================================================
+GMAIL_ADDRESS     = "senthilvj2001@gmail.com"         
+GMAIL_APP_PASSWORD = "drdj fwwh qerx hcor"  
+GEMINI_API_KEY    = "AIzaSyDhQTTkyvwrjRYB4PBVYPmYNZJhDKxq_-0"  
 
-# About yourself — AI uses this to write better replies
 MY_NAME = "Senthil"
 MY_INFO = """
 I am Senthil, a software developer from Chennai, India.
@@ -32,19 +27,12 @@ I am available Monday to Friday, 9 AM to 6 PM IST.
 For urgent matters people can reach me on email.
 """
 
-# Emails to never reply to
 IGNORE_SENDERS = [
-    "no-reply",
-    "noreply",
-    "donotreply",
-    "newsletter",
-    "notification",
-    "support@",
-    "mailer-daemon",
-    "postmaster",
+    "no-reply", "noreply", "donotreply",
+    "newsletter", "notification",
+    "mailer-daemon", "postmaster",
 ]
 
-# Track replied emails so we don't reply twice
 REPLIED_FILE = "replied_emails.txt"
 
 
@@ -94,13 +82,11 @@ def get_email_body(msg):
             body = msg.get_payload(decode=True).decode("utf-8", errors="ignore")
         except:
             pass
-    return body[:2000]  # Limit to 2000 characters
+    return body[:2000]
 
 
 def generate_reply(sender_name, sender_email, subject, body):
-    genai.configure(api_key=GEMINI_API_KEY)
-    model = genai.GenerativeModel("gemini-2.0-flash")
-
+    client = genai.Client(api_key=GEMINI_API_KEY)
     prompt = f"""
 You are {MY_NAME}. Here is some info about you:
 {MY_INFO}
@@ -123,8 +109,10 @@ Rules for your reply:
 
 Write only the reply text, nothing else.
 """
-
-    response = model.generate_content(prompt)
+    response = client.models.generate_content(
+        model="gemini-2.0-flash",
+        contents=prompt
+    )
     return response.text.strip()
 
 
@@ -135,9 +123,7 @@ def send_reply(to_email, to_name, subject, reply_text, original_message_id):
     msg["Subject"] = f"Re: {subject}"
     msg["In-Reply-To"] = original_message_id
     msg["References"] = original_message_id
-
     msg.attach(MIMEText(reply_text, "plain"))
-
     with smtplib.SMTP_SSL("smtp.gmail.com", 465) as server:
         server.login(GMAIL_ADDRESS, GMAIL_APP_PASSWORD)
         server.sendmail(GMAIL_ADDRESS, to_email, msg.as_string())
@@ -145,93 +131,59 @@ def send_reply(to_email, to_name, subject, reply_text, original_message_id):
 
 def check_and_reply_emails():
     print(f"\n[{datetime.now().strftime('%H:%M:%S')}] Checking emails...")
-
     replied = load_replied()
-
     try:
         mail = imaplib.IMAP4_SSL("imap.gmail.com")
         mail.login(GMAIL_ADDRESS, GMAIL_APP_PASSWORD)
         mail.select("inbox")
-
-        # Search for unread emails
         status, messages = mail.search(None, "UNSEEN")
-
         if status != "OK" or not messages[0]:
             print("  No new emails!")
             mail.logout()
             return
-
         email_ids = messages[0].split()
         print(f"  Found {len(email_ids)} new email(s)!")
-
         for email_id in email_ids:
             try:
                 status, msg_data = mail.fetch(email_id, "(RFC822)")
                 raw_email = msg_data[0][1]
                 msg = email.message_from_bytes(raw_email)
-
-                # Get email details
                 message_id = msg.get("Message-ID", "").strip()
                 sender = msg.get("From", "")
                 subject = decode_subject(msg.get("Subject", "No Subject"))
                 body = get_email_body(msg)
-
-                # Extract sender name and email
                 if "<" in sender:
                     sender_name = sender.split("<")[0].strip().strip('"')
                     sender_email = sender.split("<")[1].strip(">")
                 else:
                     sender_name = sender
                     sender_email = sender
-
                 print(f"\n  From    : {sender_name} <{sender_email}>")
                 print(f"  Subject : {subject}")
-
-                # Skip if already replied
                 if message_id and message_id in replied:
                     print("  Skipping — already replied!")
                     continue
-
-                # Skip spam/no-reply senders
                 if should_ignore(sender_email):
                     print("  Skipping — ignored sender!")
                     continue
-
-                # Skip if no body
                 if not body.strip():
                     print("  Skipping — empty email!")
                     continue
-
-                # Generate AI reply
                 print("  Generating AI reply...")
                 reply_text = generate_reply(sender_name, sender_email, subject, body)
                 print(f"  Reply preview: {reply_text[:100]}...")
-
-                # Send reply
                 send_reply(sender_email, sender_name, subject, reply_text, message_id)
                 print("  Reply sent successfully!")
-
-                # Mark as replied
                 if message_id:
                     save_replied(message_id)
-
             except Exception as e:
                 print(f"  Error processing email: {e}")
-
         mail.logout()
-
     except Exception as e:
         print(f"  Connection error: {e}")
 
 
 def main():
-    if GMAIL_ADDRESS == "YOUR_GMAIL_HERE":
-        print("\n" + "!" * 50)
-        print("  Please fill in your details at the top of the file!")
-        print("  GMAIL_ADDRESS, GMAIL_APP_PASSWORD, GEMINI_API_KEY")
-        print("!" * 50)
-        return
-
     print("=" * 50)
     print("  Email Auto Reply Agent Started!")
     print("=" * 50)
@@ -239,11 +191,7 @@ def main():
     print(f"  Checking  : Every 2 minutes")
     print(f"  AI Model  : Gemini 2.0 Flash")
     print("=" * 50)
-
-    # Check immediately on start
     check_and_reply_emails()
-
-    # Then check every 2 minutes
     while True:
         time.sleep(120)
         check_and_reply_emails()
