@@ -110,7 +110,7 @@ Rules for your reply:
 Write only the reply text, nothing else.
 """
     response = client.models.generate_content(
-        model="gemini-2.0-flash",
+        model="gemini-1.5-flash",
         contents=prompt
     )
     return response.text.strip()
@@ -193,7 +193,7 @@ def main():
     print("=" * 50)
     check_and_reply_emails()
     while True:
-        time.sleep(10)
+        time.sleep(60)
         check_and_reply_emails()
 
 
