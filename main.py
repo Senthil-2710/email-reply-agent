@@ -110,7 +110,7 @@ Rules for your reply:
 Write only the reply text, nothing else.
 """
     response = client.models.generate_content(
-        model="gemini-1.5-flash",
+        model="gemini-2.0-flash-lite",
         contents=prompt
     )
     return response.text.strip()
