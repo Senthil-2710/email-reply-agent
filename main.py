@@ -17,7 +17,7 @@ except ImportError:
 
 GMAIL_ADDRESS     = "senthilvj2001@gmail.com"         
 GMAIL_APP_PASSWORD = "drdj fwwh qerx hcor"  
-GEMINI_API_KEY    = "AIzaSyAE1xmL5InnCpFHYm6_NN0dOZC95VmIVyk"  
+GEMINI_API_KEY    = "AIzaSyBNb9OB1UOiN3XZJsyoe72Jxcgp00etdfA"  
 
 MY_NAME = "Senthil"
 MY_INFO = """
