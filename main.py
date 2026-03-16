@@ -193,7 +193,7 @@ def main():
     print("=" * 50)
     check_and_reply_emails()
     while True:
-        time.sleep(60)
+        time.sleep(120)
         check_and_reply_emails()
 
 
